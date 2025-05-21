@@ -3,12 +3,11 @@ FROM quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21 AS build
 WORKDIR /app/
 
 # Copy only files related Maven build
-COPY mvnw .
+COPY --chmod=755 mvnw .
 COPY .mvn .mvn
 COPY pom.xml .
 
 # Download dependencies and cache in layer
-RUN chmod +x mvnw
 RUN ./mvnw -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline
 
 # Copy source
