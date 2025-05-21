@@ -1,11 +1,26 @@
-# Bước 2: Copy binary ra container tối giản
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+### Stage 1: Build native binary with GraalVM container
+FROM quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-21 AS build
+WORKDIR /app/
 
-WORKDIR /opt/
+# Copy only files related Maven build
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
 
-COPY *-runner /opt/application
+# Download dependencies and cache in layer
+RUN ./mvnw -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline
 
-RUN chmod 755 /opt/application
+# Copy source
+COPY src src
+
+# Build native execute
+RUN ./mvnw clean install -Dnative
+
+### Stage 2: Build Docker image
+FROM quay.io/quarkus/ubi9-quarkus-micro-image:2.0
+WORKDIR /work/
+COPY --from=build /app/target/*-runner /work/application
+RUN chmod 755 /work/application
 EXPOSE 8080
 USER 1001
-ENTRYPOINT ["/opt/application", "-Dquarkus.http.host=0.0.0.0"]
+ENTRYPOINT ["/work/application", "-Dquarkus.http.host=0.0.0.0"]
